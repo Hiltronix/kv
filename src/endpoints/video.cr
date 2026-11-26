@@ -6,9 +6,8 @@ require "../ogg_opus_muxer"
 
 get "/video.mjpg" do |env|
   env.response.content_type = "multipart/x-mixed-replace; boundary=mjpegboundary"
-  env.response.headers["Cache-Control"] = "no-cache"
+  env.response.headers["Cache-Control"] = "no-store"
   env.response.headers["Connection"] = "close"
-  env.response.headers["Access-Control-Allow-Origin"] = "*"
 
   manager = GlobalKVM.manager
   unless manager.video_running?

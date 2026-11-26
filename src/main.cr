@@ -52,10 +52,12 @@ module Main
         -f FPS, --fps=FPS                  Video framerate [default: 30]
         -q QUALITY, --quality=QUALITY      Video JPEG quality (1-100) [default: 100]
         -p PORT, --port=PORT               HTTP server port [default: 3000]
-        -b ADDRESS, --bind=ADDRESS         Address to bind to [default: 0.0.0.0]
+        -b ADDRESS, --bind=ADDRESS         Address to bind to [default: 127.0.0.1]
         --disable-mouse                   Disable USB mouse gadget
-        --disable-ethernet                 Disable USB ethernet gadget
-        --disable-mass-storage             Disable USB mass storage gadget
+        --enable-ethernet                  Permit USB ethernet gadget (disabled by default)
+        --disable-ethernet                 Force USB ethernet gadget disabled
+        --enable-mass-storage              Permit USB mass storage gadget (disabled by default)
+        --disable-mass-storage             Force USB mass storage gadget disabled
         --anti-idle                        Enable anti-idle mouse jiggler every 60 seconds
         --hotplug-interval=SECONDS         Video device hotplug polling interval [default: 60]
         -h, --help                         Show this help
@@ -75,6 +77,20 @@ module Main
 
     args = Docopt.docopt(usage, ARGV, version: VERSION)
 
+    # Authentication is mandatory, including on loopback.
+    user = ENV["KV_USER"]?
+    pass = ENV["KV_PASSWORD"]?
+    if !user || user.strip.empty? || !pass || pass.size < 16 || pass.strip != pass ||
+       {"your_username", "your_kv_username"}.includes?(user.downcase) ||
+       {"your_strong_password", "your_kv_password", "passwordpassword", "changemechangeme"}.includes?(pass.downcase) ||
+       pass.chars.uniq.size < 6
+      Log.error { "Set KV_USER and a non-placeholder KV_PASSWORD of at least 16 characters." }
+      exit 1
+    end
+    limiter = Kemal::BasicAuth::RateLimiter.new(max_attempts: 5, window: 1.minute)
+    basic_auth user, pass, rate_limiter: limiter
+    Kemal.config.env = "production"
+
     # Check hardware availability first
     hw_status = HardwareDetector.hardware_status
     Log.info { "Hardware detection results:" }
@@ -89,19 +105,6 @@ module Main
 
     KVMManagerV4cr.perform_system_cleanup
 
-    # Basic Auth setup
-    user = ENV["KV_USER"]?
-    pass = ENV["KV_PASSWORD"]?
-    if (user && !pass) || (!user && pass)
-      Log.error { "Both KV_USER and KV_PASSWORD must be set for basic authentication." }
-      exit 1
-    elsif user && pass
-      Log.info { "🔒 Basic authentication enabled (user: #{user})" }
-      basic_auth user, pass
-    else
-      Log.info { "🔓 Basic authentication is disabled (KV_USER and KV_PASSWORD not set)" }
-    end
-
     # Extract options from docopt result
     video_device = args["--device"]?.try(&.as(String)) || ""
     audio_device = args["--audio-device"]?.try(&.as(String)) || "hw:1,0"
@@ -109,7 +112,7 @@ module Main
     fps = args["--fps"]?.try(&.as(String)) || "30"
     jpeg_quality = args["--quality"]?.try(&.as(String)) || "100"
     port = args["--port"]?.try(&.as(String)) || "3000"
-    bind_address = args["--bind"]?.try(&.as(String)) || "0.0.0.0"
+    bind_address = args["--bind"]?.try(&.as(String)) || "127.0.0.1"
     hotplug_interval = args["--hotplug-interval"]?.try(&.as(String)) || "60"
     auto_detect = video_device.empty? || video_device == "auto-detect"
 
@@ -202,8 +205,8 @@ module Main
 
     # Extract disable flags
     disable_mouse = false
-    disable_ethernet = false
-    disable_mass_storage = false
+    disable_ethernet = !args["--enable-ethernet"]
+    disable_mass_storage = !args["--enable-mass-storage"]
     disable_mouse = true if args["--disable-mouse"]
     disable_ethernet = true if args["--disable-ethernet"]
     disable_mass_storage = true if args["--disable-mass-storage"]
@@ -297,9 +300,19 @@ module Main
     Log.info { "" }
 
     add_handler BakedFileHandler::BakedFileHandler.new(Assets)
-    # Enable CORS for all origins (allow cross-origin requests) on all responses
+    # No cross-origin access is required by the KVM interface.
     before_all do |env|
-      env.response.headers.add("Access-Control-Allow-Origin", "*")
+      env.response.headers["X-Content-Type-Options"] = "nosniff"
+      env.response.headers["X-Frame-Options"] = "DENY"
+      env.response.headers["Referrer-Policy"] = "no-referrer"
+      env.response.headers["Cache-Control"] = "no-store"
+      if env.request.method != "GET" && env.request.method != "HEAD"
+        origin = env.request.headers["Origin"]?
+        host = env.request.headers["Host"]?
+        unless origin && host && (origin == "http://#{host}" || origin == "https://#{host}")
+          halt env, status_code: 403, response: "Origin rejected"
+        end
+      end
     end
     # Configure log level based on environment variable
     log_level = ENV.fetch("LOG_LEVEL", "info").downcase

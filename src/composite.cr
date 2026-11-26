@@ -486,6 +486,8 @@ module HIDComposite
         "--dhcp-range=#{dhcp_range}",
         "--dhcp-authoritative",
         "--no-resolv",
+        "--port=0",
+        "--conf-file=/dev/null",
         "--log-facility=/var/log/dnsmasq.usb0.log",
       ]
       begin
