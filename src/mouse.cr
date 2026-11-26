@@ -38,7 +38,6 @@ module HIDMouse
       raise "Failed to open HID absolute mouse device #{device_path}"
     end
     begin
-      Log.debug { "Writing absolute mouse report: #{report.map { |byte| "%02x" % byte }.join(" ")}" }
       bytes_written = LibC.write(fd, report, report.size)
       if bytes_written < 0
         errno_val = Errno.value
@@ -125,7 +124,6 @@ module HIDMouse
 
     begin
       # Send the mouse report
-      Log.debug { "Writing mouse report: #{report.map { |byte| "%02x" % byte }.join(" ")}" }
       bytes_written = LibC.write(fd, report, report.size)
       if bytes_written < 0
         errno_val = Errno.value

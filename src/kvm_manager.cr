@@ -390,10 +390,10 @@ class KVMManagerV4cr
     begin
       report = HIDKeyboard.create_keyboard_report([usage], modifiers)
       HIDKeyboard.send_keyboard_report(@keyboard_device.to_s, report)
-      {success: true, message: "HID usage sent: 0x#{usage.to_s(16)}"}
+      {success: true, message: "HID usage sent"}
     rescue ex
-      Log.error { "Failed to send HID usage: #{ex.message}" }
-      {success: false, message: "Error sending HID usage: #{ex.message}"}
+      Log.error { "Failed to send HID usage (#{ex.class})" }
+      {success: false, message: "Error sending HID usage"}
     end
   end
 
@@ -401,7 +401,7 @@ class KVMManagerV4cr
     # Track keys before sending to prevent duplicates
     keys.each do |key|
       if @pressed_keys.includes?(key)
-        Log.warn { "Key '#{key}' is already pressed, skipping to prevent duplicate" }
+        Log.warn { "Key is already pressed, skipping to prevent duplicate" }
         next
       end
       @pressed_keys.add(key)
@@ -417,12 +417,12 @@ class KVMManagerV4cr
     # Remove keys from pressed state after successful send
     active_keys.each { |key| @pressed_keys.delete(key) }
 
-    {success: true, message: "Keys sent: #{active_keys.join("+")}"}
+    {success: true, message: "Keys sent"}
   rescue ex
     # Clear pressed keys on error
     keys.each { |key| @pressed_keys.delete(key) }
-    Log.error { "Failed to send keys: #{ex.message}" }
-    {success: false, message: "Error sending keys: #{ex.message}"}
+    Log.error { "Failed to send keys (#{ex.class})" }
+    {success: false, message: "Error sending keys"}
   end
 
   def send_text(text : String)
@@ -430,12 +430,11 @@ class KVMManagerV4cr
     return {success: false, message: "No keyboard device"} unless @keyboard_device
 
     begin
-      Log.debug { "Sending text: '#{text}'" }
       HIDKeyboard.send_text(@keyboard_device, text)
-      {success: true, message: "Text sent: #{text}"}
+      {success: true, message: "Text sent"}
     rescue ex
-      Log.error { "Failed to send text: #{ex.message}" }
-      {success: false, message: "Error sending text: #{ex.message}"}
+      Log.error { "Failed to send text (#{ex.class})" }
+      {success: false, message: "Error sending text"}
     end
   end
 
@@ -484,8 +483,8 @@ class KVMManagerV4cr
         {success: false, message: "Mouse device not available"}
       end
     rescue ex
-      Log.error { "Failed to send mouse click: #{ex.message}" }
-      {success: false, message: "Error sending mouse click: #{ex.message}"}
+      Log.error { "Failed to send mouse click (#{ex.class})" }
+      {success: false, message: "Error sending mouse click"}
     end
   end
 
@@ -502,8 +501,8 @@ class KVMManagerV4cr
         {success: false, message: "Mouse device not available"}
       end
     rescue ex
-      Log.error { "Failed to send mouse move: #{ex.message}" }
-      {success: false, message: "Error sending mouse move: #{ex.message}"}
+      Log.error { "Failed to send mouse move (#{ex.class})" }
+      {success: false, message: "Error sending mouse move"}
     end
   end
 
@@ -520,8 +519,8 @@ class KVMManagerV4cr
         {success: false, message: "Mouse device not available"}
       end
     rescue ex
-      Log.error { "Failed to send mouse press: #{ex.message}" }
-      {success: false, message: "Error sending mouse press: #{ex.message}"}
+      Log.error { "Failed to send mouse press (#{ex.class})" }
+      {success: false, message: "Error sending mouse press"}
     end
   end
 
@@ -538,8 +537,8 @@ class KVMManagerV4cr
         {success: false, message: "Mouse device not available"}
       end
     rescue ex
-      Log.error { "Failed to send mouse release: #{ex.message}" }
-      {success: false, message: "Error sending mouse release: #{ex.message}"}
+      Log.error { "Failed to send mouse release (#{ex.class})" }
+      {success: false, message: "Error sending mouse release"}
     end
   end
 
@@ -555,8 +554,8 @@ class KVMManagerV4cr
         {success: false, message: "Mouse device not available"}
       end
     rescue ex
-      Log.error { "Failed to send mouse wheel: #{ex.message}" }
-      {success: false, message: "Error sending mouse wheel: #{ex.message}"}
+      Log.error { "Failed to send mouse wheel (#{ex.class})" }
+      {success: false, message: "Error sending mouse wheel"}
     end
   end
 
@@ -573,8 +572,8 @@ class KVMManagerV4cr
         {success: false, message: "Mouse device not available"}
       end
     rescue ex
-      Log.error { "Failed to send mouse move with buttons: #{ex.message}" }
-      {success: false, message: "Error sending mouse move with buttons: #{ex.message}"}
+      Log.error { "Failed to send mouse move with buttons (#{ex.class})" }
+      {success: false, message: "Error sending mouse move with buttons"}
     end
   end
 
@@ -585,8 +584,8 @@ class KVMManagerV4cr
         HIDMouse.send_mouse_absolute_move(mouse_device_absolute, x, y, buttons)
         {success: true, message: "Absolute mouse move sent: #{x}, #{y} with buttons: #{buttons}"}
       rescue ex
-        Log.error { "Failed to send absolute mouse move: #{ex.message}" }
-        {success: false, message: "Error sending absolute mouse move: #{ex.message}"}
+        Log.error { "Failed to send absolute mouse move (#{ex.class})" }
+        {success: false, message: "Error sending absolute mouse move"}
       end
     else
       {success: false, message: "Absolute mouse not available"}

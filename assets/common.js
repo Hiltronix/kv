@@ -164,7 +164,6 @@ window.setupInputWebSocket = function () {
   wsInput.onmessage = function (ev) {
     try {
       const msg = JSON.parse(ev.data)
-      console.log('WS message received:', msg)
 
       // Handle device status messages
       if (msg.type === 'device_status') {

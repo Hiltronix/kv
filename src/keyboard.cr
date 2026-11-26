@@ -250,7 +250,6 @@ module HIDKeyboard
 
     begin
       # Send the key report (key press)
-      Log.debug { "Writing key press: #{report.map { |byte| "%02x" % byte }.join(" ")}" }
       press_success = write_with_retry(fd, report, "Key press")
 
       # Minimal delay to separate key press and release
@@ -259,7 +258,6 @@ module HIDKeyboard
       # Always attempt to send key release, even if press failed
       # This prevents keys from getting stuck
       empty_report = Bytes.new(8, 0_u8)
-      Log.debug { "Writing key release: #{empty_report.map { |byte| "%02x" % byte }.join(" ")}" }
       release_success = write_with_retry(fd, empty_report, "Key release")
 
       Log.debug { "HID write completed - press: #{press_success}, release: #{release_success}" }
@@ -295,27 +293,24 @@ module HIDKeyboard
         report[2] = val
       else
         # Skip unsupported characters
-        Log.debug { "Skipping unsupported character: '#{char}' (#{char.ord})" }
         next
       end
 
       # Use non-blocking writes to prevent hanging
       fd = LibC.open(device_path, LibC::O_RDWR | LibC::O_NONBLOCK, 0o666)
       if fd < 0
-        Log.error { "Failed to open HID device for char '#{char}'" }
+        Log.error { "Failed to open HID keyboard device" }
         next
       end
 
       begin
         # Send key press
-        Log.debug { "Text char '#{char}' press: #{report.map { |byte| "%02x" % byte }.join(" ")}" }
         press_success = write_with_retry(fd, report, "Text char '#{char}' press")
 
         sleep 0.001.seconds
 
         # Send key release (clear report like C code)
         empty_report = Bytes.new(8, 0_u8)
-        Log.debug { "Text char '#{char}' release: #{empty_report.map { |byte| "%02x" % byte }.join(" ")}" }
         release_success = write_with_retry(fd, empty_report, "Text char '#{char}' release")
 
         # Only continue to next character if both press and release succeeded

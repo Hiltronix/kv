@@ -79,7 +79,6 @@ ws "/ws/input" do |socket|
   end
 
   socket.on_message do |message|
-    Log.info { "Received WebSocket message: #{message}" }
     begin
       data = JSON.parse(message)
       event_type = data["type"]?.try(&.as_s)
@@ -181,10 +180,10 @@ ws "/ws/input" do |socket|
         result = manager.send_mouse_absolute_move(x, y, buttons)
         handle_result.call(result)
       else
-        send_error.call("Unknown event type: #{event_type}")
+        send_error.call("Unknown event type")
       end
     rescue ex
-      Log.error { "WebSocket message parse error: #{ex.message}" }
+      Log.error { "Invalid WebSocket input message (#{ex.class})" }
       send_error.call("Invalid message format")
     end
   end
