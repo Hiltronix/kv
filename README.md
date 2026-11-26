@@ -1,4 +1,8 @@
-# kv
+# kv - Hiltronix Privacy Edition
+
+Development branch: privacy hardening in progress. No hardened binary is published until testing is complete.
+
+This fork preserves the direct KVM architecture while removing sensitive input logs and remote browser resources. Authentication is mandatory; USB Ethernet and virtual mass storage are opt-in. See [security and deployment notes](docs/security.md).
 
 KV is a modern, simple remote KVM solution. Minimal dependencies, easy to set up, and designed for performance.
 
@@ -32,9 +36,7 @@ There is a [tutorial in Reddit](https://www.reddit.com/r/homelab/comments/1nld47
 
 ## Installation
 
-You can build from source or get the static binaries from the [releases page](https://github.com/ralsina/kv/releases)
-
-Put it somewhere, run it, look at the options.
+Build this fork from source. Do not install upstream binaries. Use the local installer with a trusted executable and independently verified SHA-256 digest; see [security and deployment notes](docs/security.md).
 
 ## Usage
 
@@ -74,7 +76,7 @@ Details to be explained
 
 ## Contributing
 
-1. Fork it (<https://github.com/ralsina/kv/fork>)
+1. Fork it (<https://github.com/Hiltronix/kv/fork>)
 2. Create your feature branch (`git checkout -b my-new-feature`)
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)

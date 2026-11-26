@@ -18,7 +18,7 @@ but those can surely be added if there is interest.
 
 ## Installation
 
-You can just get static binaries from <https://github.com/ralsina/kv/releases>
+Build the Hiltronix fork from source and follow [security and deployment notes](security.md).
 
 ## Remote Video
 
@@ -82,6 +82,8 @@ for the server's operating system.
 
 ## Ethernet Gadget
 
+Disabled by default. Start with `--enable-ethernet` to permit activation through the interface. DHCP does not advertise a default gateway or DNS server.
+
 Your KVM can also act as an Ethernet gadget, allowing you to connect to
 the server over a network connection. If the server has lost connectivity
 you can even provide it with a new network connection by configuring the
@@ -135,22 +137,4 @@ Let me know if you make it work on other hardware!
 
 ## Security and Remote Access
 
-First of all: `kv` does not currently nor will it ever "call home". Why? Because I don't care what you do
-with it. It's open source code, so you can look at it, it literally has no code in it to do anything other
-than what it says it does.
-
-On the other hand, you want two things from a remote KVM solution:
-
-1) You want to connect to it securely and not let others access it.
-2) You want to connect to it remotely, not just from the local network.
-
-For 1:
-
-* `kv` supports basic authentication, so you can set a user and password
-* **IMPORTANT** `kv` has no secure transport. If you don't want someone
-  to sniff your password, you should use a HTTPS terminating proxy in
-  front of it.
-
-For 2:
-
-Your KVM is a freaking computer, setup a VPN. I use tailscale.
+See [security and deployment notes](security.md) for this fork's mandatory authentication, local assets, opt-in USB features and secure transport requirements.

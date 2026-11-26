@@ -1,20 +1,29 @@
 [Unit]
-Description=KV: Remote KVM
+Description=KV: Privacy-focused remote KVM
 After=network.target
 
 [Service]
 Type=simple
-
-# --- Authentication Configuration ---
-# Set these environment variables to enable Basic Authentication.
-Environment="KV_USER=your_username"
-Environment="KV_PASSWORD=your_strong_password"
-
-# Replace with the path to a writable directory
-WorkingDirectory=/opt/kv
-# Replace with the actual path and options to the Grafito binary
-ExecStart=/usr/local/bin/kv -b 0.0.0.0 -p 3000 -r 720p
+EnvironmentFile=/etc/kv/kv.env
+Environment=KEMAL_ENV=production
+StateDirectory=kv
+StateDirectoryMode=0700
+WorkingDirectory=/var/lib/kv
+ExecStart=/usr/local/bin/kv -b 127.0.0.1 -p 3000 -r 720p
 Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectControlGroups=true
+ProtectKernelLogs=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK AF_PACKET
+# Root and device/configfs access remain necessary for the USB gadget.
+ReadWritePaths=-/sys/kernel/config
 
 [Install]
 WantedBy=multi-user.target

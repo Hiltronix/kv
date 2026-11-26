@@ -488,10 +488,15 @@ module HIDComposite
         "--no-resolv",
         "--port=0",
         "--conf-file=/dev/null",
-        "--log-facility=/var/log/dnsmasq.usb0.log",
+        "--keep-in-foreground",
+        "--leasefile-ro",
+        "--dhcp-option=3",
+        "--dhcp-option=6",
+        "--log-facility=-",
       ]
       begin
-        process = Process.new("dnsmasq", dnsmasq_args)
+        process = Process.new("dnsmasq", dnsmasq_args, input: Process::Redirect::Close,
+          output: Process::Redirect::Inherit, error: Process::Redirect::Inherit)
         @@dnsmasq_pid = process.pid
         @@ecm_enabled = true
         Log.debug { "Started dnsmasq for #{@@ethernet_ifname} with pid #{process.pid}" }

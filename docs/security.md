@@ -1,0 +1,23 @@
+# Privacy and deployment
+
+This development branch is not yet a tested release. Runtime use does not require a cloud account, relay, DNS service or external web assets. Dependencies are fetched during build, not during normal operation.
+
+## Install
+
+Build from this fork, inspect the output and obtain a SHA-256 digest from a trusted source. Run `sudo bash site/install.sh /path/to/kv EXPECTED_SHA256` from the source checkout. The installer does not download executables or start the service. Set KV_USER and a unique, randomly generated KV_PASSWORD (at least 16 characters) in the root-only /etc/kv/kv.env file before enabling the service. Do not use credentials shared with other services.
+
+The service defaults to loopback HTTP port 3000. For remote access use an HTTPS reverse proxy with a verified certificate, or bind explicitly to the device's WireGuard address and restrict firewall access to authorized peers. Do not expose port 3000 to the Internet. KV does not implement native TLS. Basic Auth over bare HTTP is not encrypted.
+
+## Optional USB features
+
+- `--enable-ethernet`: allow ECM activation; DHCP only, no DNS or default gateway advertisement. Apply firewall restrictions to usb0 separately.
+- `--enable-mass-storage`: permit USB virtual disk attachment. Images are read-only to the controlled computer. Raw IMG/RAW/ISO and gzip, bzip2, xz and ZIP are supported. QCOW2 is rejected. Uploads are limited to 1 GiB and decompressed output to 8 GiB per image. Use a dedicated filesystem quota to cap aggregate storage.
+- Neither feature is permitted by default. Keyboard/mouse/video remain independent of them.
+
+The systemd service retains root and hardware access needed by configfs, modprobe and USB HID. Hardening is not a substitute for firewall restrictions. Test on actual hardware before deployment.
+
+## Privacy verification
+
+Test both the KVM device and browser in a network-isolated environment. Verify that no connections to external origins occur in browser DevTools (including fonts, CSS, WebSocket, PWA/cache and audio). Capture DNS and outbound traffic on the SBC during startup, idle, browser connections and optional USB activation. Use test text, not real passwords, to verify absence from logs even at DEBUG level. Clear any historical journal entries and legacy browser caches separately if appropriate.
+
+Test missing/invalid credentials, authenticated HTTP and WebSocket, cross-origin requests, both USB opt-in flags, upload size limits, invalid paths, symlinks, compressed data and read-only USB behavior. Review the systemd unit on the target platform before enabling it. Dependency vulnerability and native binary audits remain separate tasks.

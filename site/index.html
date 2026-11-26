@@ -6,7 +6,7 @@
     <title>KV - Modern Remote KVM</title>
     <link
       rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+      href="vendor/pico.min.css"
     />
     <style>
       :root {
@@ -46,10 +46,8 @@
         border-top: 1px solid var(--pico-muted-border-color);
       }
     </style>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;700&display=swap"
+      href="vendor/fonts.css"
       rel="stylesheet"
     />
   </head>
@@ -63,7 +61,7 @@
         <li><a href="#diagram">Diagram</a></li>
         <li>
           <a
-            href="https://github.com/ralsina/kv"
+            href="https://github.com/Hiltronix/kv"
             class="secondary"
             target="_blank"
             >GitHub</a
@@ -308,17 +306,12 @@
         <!-- Added margin-bottom for spacing -->
         <h2><span class="feature-icon emoji">🚀</span>Quick Install</h2>
         <p>
-          Get started quickly on Linux. Use our simple install script to
-          download the correct binary, place it in
-          <code>/usr/local/bin</code>, and set up a systemd service (or follow
-          any of the possible
-          <a href="https://github.com/ralsina/kv">installation instructions</a
-          >).
+          Build KV from the trusted fork and follow the <a href="https://github.com/Hiltronix/kv">installation instructions</a>. The installer accepts a local binary and independently verified SHA-256 digest.
         </p>
         <div class="code-block-wrapper" style="position: relative;">
           <pre
             class="code-block"
-          ><code id="install-command-text">curl -sSL https://kv.ralsina.me/install.sh | sudo bash</code></pre>
+          ><code id="install-command-text">sudo bash site/install.sh /path/to/kv EXPECTED_SHA256</code></pre>
           <button
             class="copy-button"
             id="copy-install-command"
@@ -394,7 +387,7 @@
         need assistance, don't hesitate to reach out!
       </p>
       <a
-        href="https://github.com/ralsina/kv/issues"
+        href="https://github.com/Hiltronix/kv/issues"
         role="button"
         class="secondary"
         >Ask for Help on GitHub</a
@@ -403,7 +396,6 @@
     <footer class="footer">
       <p>&copy; 2025 KV Project. All rights reserved.</p>
     </footer>
-    <script src="/assets/script.js"></script>
     <script>
       // Simple JS carousel for screenshots
       (function () {
