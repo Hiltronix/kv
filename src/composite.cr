@@ -255,7 +255,7 @@ module HIDComposite
           file_file = "#{base}/functions/mass_storage.0/lun.0/file"
           udc_file = "#{base}/UDC"
 
-          writable = File::Info.writable?(storage_file)
+          writable = false # Expose disk images read-only to the controlled host.
           Log.debug { "Disk image writable_by_process=#{writable}" }
 
           # 1. Unbind UDC before reconfiguring mass storage

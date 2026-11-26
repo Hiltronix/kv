@@ -322,17 +322,33 @@ window.refreshUsbImages = function () {
     const container = document.getElementById('usb-image-list')
     if (!container) return
     if (data.images && data.images.length > 0) {
-      container.innerHTML = data.images.map(img => {
+      container.replaceChildren()
+      for (const img of data.images) {
         const isSelected = img === data.selected
-        const icon = isSelected ? 'eject' : 'play_arrow'
-        const btnTitle = isSelected ? 'Detach' : 'Mount'
-        return `
-          <div class="usb-item ${isSelected ? 'selected' : ''}">
-            <span class="usb-name" title="${img}">${img}</span>
-            <button class="outline secondary" onclick="window.deleteUsbImage('${img}')" title="Delete" ${isSelected ? 'disabled' : ''}><span class="material-icons">delete</span></button>
-            <button class="outline" onclick="${isSelected ? 'window.detachUsbImage()' : `window.selectUsbImage('${img}')`}" title="${btnTitle}"><span class="material-icons">${icon}</span></button>
-          </div>`
-      }).join('')
+        const item = document.createElement('div')
+        item.className = 'usb-item' + (isSelected ? ' selected' : '')
+        const name = document.createElement('span')
+        name.className = 'usb-name'
+        name.title = img
+        name.textContent = img
+        const makeButton = (icon, title, action, disabled = false) => {
+          const button = document.createElement('button')
+          button.className = 'outline'
+          button.title = title
+          button.disabled = disabled
+          const span = document.createElement('span')
+          span.className = 'material-icons'
+          span.textContent = icon
+          button.append(span)
+          button.addEventListener('click', action)
+          return button
+        }
+        item.append(name,
+          makeButton('delete', 'Delete', () => window.deleteUsbImage(img), isSelected),
+          makeButton(isSelected ? 'eject' : 'play_arrow', isSelected ? 'Detach' : 'Mount',
+            () => isSelected ? window.detachUsbImage() : window.selectUsbImage(img)))
+        container.append(item)
+      }
     } else {
       container.innerHTML = '<em>No disk images found.</em>'
     }
@@ -343,7 +359,7 @@ window.selectUsbImage = (image) => window.apiFetch('/api/storage/select', { meth
 window.detachUsbImage = () => window.apiFetch('/api/storage/select', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: null }) }, () => { window.refreshUsbImages(); window.updateStatus() })
 window.deleteUsbImage = (filename) => {
   if (confirm(`Are you sure you want to delete ${filename}?`)) {
-    window.apiFetch(`/api/storage/images/${filename}`, { method: 'DELETE' }, (data) => {
+    window.apiFetch(`/api/storage/images/${encodeURIComponent(filename)}`, { method: 'DELETE' }, (data) => {
       showToast(data.message, 'success')
       window.refreshUsbImages()
     })

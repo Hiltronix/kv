@@ -210,6 +210,8 @@ module Main
     disable_mouse = true if args["--disable-mouse"]
     disable_ethernet = true if args["--disable-ethernet"]
     disable_mass_storage = true if args["--disable-mass-storage"]
+    Kemal.config.max_file_uploads = disable_mass_storage ? 0 : 1
+    Kemal.config.max_request_body_size = disable_mass_storage ? 1_048_576 : 1_074_790_400
 
     # Create and set the global KVM manager instance
     kvm_manager = KVMManagerV4cr.new(

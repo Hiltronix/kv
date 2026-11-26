@@ -53,8 +53,8 @@ post "/api/storage/select" do |env|
     else
       next({success: false, message: "Mass storage manager not available"}.to_json)
     end
-    # Re-setup HID devices to apply new image
-    manager.setup_hid_devices
+    # Re-setup HID devices only after successful image selection.
+    manager.setup_hid_devices if result[:success]
     result.to_json
   rescue ex
     {success: false, message: "Invalid request: #{ex.message}"}.to_json
@@ -79,11 +79,11 @@ post "/api/storage/upload" do |env|
     end
 
     orig_filename = upload.filename.to_s
-    temp_file = File.tempfile("upload") { |file_handle| IO.copy(upload.tempfile, file_handle) }
-
-    manager = GlobalKVM.manager
-    result = manager.upload_and_decompress_image(temp_file.path, orig_filename)
-    temp_file.delete
+    if upload.tempfile.size > MassStorageManager::MAX_UPLOAD_BYTES
+      env.response.status_code = 413
+      next({success: false, message: "Upload exceeds 1 GiB"}.to_json)
+    end
+    result = manager.upload_and_decompress_image(upload.tempfile.path, orig_filename)
     if result[:success]
       {success: true, message: result[:message], filename: result[:filename]}.to_json
     else
@@ -92,7 +92,7 @@ post "/api/storage/upload" do |env|
     end
   rescue ex
     env.response.status_code = 500
-    {success: false, message: "Upload failed: #{ex.message}"}.to_json
+    {success: false, message: "Upload failed"}.to_json
   end
 end
 

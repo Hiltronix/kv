@@ -4,43 +4,59 @@ class MassStorageManager
 
   @selected_image : String? = nil
 
-  # List available disk images in ./disk-images
-  def available_images
-    Dir.glob("./disk-images/*").select { |fname| File.file?(fname) }
+  MAX_UPLOAD_BYTES = 1_073_741_824_i64
+  MAX_IMAGE_BYTES = 8_589_934_592_i64
+
+  def self.valid_filename?(filename : String) : Bool
+    filename.bytesize <= 180 && !!(filename =~ /\A[A-Za-z0-9][A-Za-z0-9._-]*\.img\z/)
   end
 
-  # Delete a disk image
-  def delete_image(filename : String)
-    full_path = File.join("./disk-images", filename)
-    Log.info { "Attempting to delete image: #{full_path}" }
+  def self.storage_dir : String
+    path = File.expand_path("disk-images")
+    Dir.mkdir(path, 0o700) unless Dir.exists?(path)
+    raise "Unsafe disk image directory" unless File.real_path(path) == path
+    path
+  end
 
-    unless File.exists?(full_path)
+  def self.image_path(filename : String) : String?
+    return nil unless valid_filename?(filename)
+    path = File.join(storage_dir, filename)
+    return nil unless File.file?(path) && !File.symlink?(path)
+    return nil unless File.real_path(path) == path
+    path
+  end
+
+  def available_images
+    Dir.children(self.class.storage_dir).compact_map { |name| self.class.image_path(name) }
+  end
+
+  def delete_image(filename : String)
+    unless full_path = self.class.image_path(filename)
       return {success: false, message: "Image not found"}
     end
-
-    if @selected_image && File.basename(@selected_image.as(String)) == filename
+    if @selected_image == full_path
       return {success: false, message: "Cannot delete selected image"}
     end
-
-    begin
-      File.delete(full_path)
-      Log.info { "Successfully deleted image: #{full_path}" }
-      {success: true, message: "Image deleted successfully"}
-    rescue ex
-      Log.error { "Failed to delete image #{full_path}: #{ex.message}" }
-      {success: false, message: "Failed to delete image: #{ex.message}"}
-    end
+    File.delete(full_path)
+    {success: true, message: "Image deleted successfully"}
+  rescue ex
+    Log.error { "Image deletion failed (#{ex.class})" }
+    {success: false, message: "Failed to delete image"}
   end
 
-  # Attach a disk image as the USB mass storage device
-  def select_image(image_path : String?)
-    Log.info { "select_image called with: #{image_path.inspect}" }
-    if image_path && !File.exists?(image_path)
-      return {success: false, message: "Image does not exist"}
+  # Accept only a validated image name, not a client-supplied filesystem path.
+  def select_image(filename : String?)
+    if filename
+      path = self.class.image_path(filename)
+      return {success: false, message: "Invalid or missing disk image"} unless path
+      @selected_image = path
+    else
+      @selected_image = nil
     end
-    @selected_image = image_path
-    Log.info { image_path ? "Selected disk image: #{image_path}" : "Detached disk image" }
-    {success: true, selected: @selected_image}
+    {success: true, selected: @selected_image.try { |path| File.basename(path) }}
+  rescue ex
+    Log.error { "Image selection failed (#{ex.class})" }
+    {success: false, message: "Failed to select image"}
   end
 
   # Return the currently selected image

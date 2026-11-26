@@ -106,61 +106,76 @@ class KVMManagerV4cr
     false
   end
 
-  # Upload and decompress a disk image, always storing as .img
+  # Store raw images and bounded decompression output in an exclusive temporary file.
+  # QCOW2 is not accepted because external backing files can access host resources.
   def upload_and_decompress_image(uploaded_path : String, orig_filename : String) : {success: Bool, message: String, filename: String?}
-    disk_images_dir = "disk-images"
-    FileUtils.mkdir_p(disk_images_dir) unless Dir.exists?(disk_images_dir)
-
-    # Basic filename sanitization
-    base_name = File.basename(orig_filename.gsub(/[^a-zA-Z0-9._-]/, "_"))
-    base_name = base_name.sub(/\.(img|raw|iso|qcow2|gz|bz2|xz|zip)$/i, "")
-    img_filename = base_name + ".img"
-    dest_path = File.join(disk_images_dir, img_filename)
-
-    # Detect compression type by extension and decompress
+    if File.size(uploaded_path) > MassStorageManager::MAX_UPLOAD_BYTES
+      return {success: false, message: "Upload exceeds 1 GiB", filename: nil}
+    end
     ext = File.extname(orig_filename).downcase
-    decompress_cmd = nil
-    case ext
-    when ".gz"
-      decompress_cmd = "gunzip -c '#{uploaded_path}' > '#{dest_path}'"
-    when ".bz2"
-      decompress_cmd = "bunzip2 -c '#{uploaded_path}' > '#{dest_path}'"
-    when ".xz"
-      decompress_cmd = "xz -d -c '#{uploaded_path}' > '#{dest_path}'"
-    when ".zip"
-      decompress_cmd = "unzip -p '#{uploaded_path}' > '#{dest_path}'"
-    when ".qcow2"
-      decompress_cmd = "qemu-img convert -O raw '#{uploaded_path}' '#{dest_path}'"
-    else
-      # Assume raw or .img, just move/rename
-      File.rename(uploaded_path, dest_path)
+    unless {".img", ".raw", ".iso", ".gz", ".bz2", ".xz", ".zip"}.includes?(ext)
+      return {success: false, message: "Unsupported image format", filename: nil}
     end
-
-    if decompress_cmd
-      Process.run(decompress_cmd, shell: true)
-      unless File.exists?(dest_path) && File.size(dest_path) > 0
-        return {success: false, message: "Decompression failed", filename: nil}
+    base_name = orig_filename.sub(/\.(img|raw|iso|gz|bz2|xz|zip)\z/i, "")
+    img_filename = base_name + ".img"
+    unless MassStorageManager.valid_filename?(img_filename)
+      return {success: false, message: "Invalid image filename", filename: nil}
+    end
+    disk_images_dir = MassStorageManager.storage_dir
+    dest_path = File.join(disk_images_dir, img_filename)
+    temp = File.tempfile(".upload-", ".part", dir: disk_images_dir)
+    begin
+      command = case ext
+                when ".gz"  then ["gunzip", "-c", uploaded_path]
+                when ".bz2" then ["bunzip2", "-c", uploaded_path]
+                when ".xz"  then ["xz", "--memlimit-decompress=256MiB", "-d", "-c", uploaded_path]
+                when ".zip" then ["unzip", "-p", uploaded_path]
+                else nil
+                end
+      if command
+        process = Process.new(command[0], command[1..], input: Process::Redirect::Close,
+          output: Process::Redirect::Pipe, error: Process::Redirect::Close)
+        begin
+          count = IO.copy(process.output, temp, MassStorageManager::MAX_IMAGE_BYTES + 1)
+          if count > MassStorageManager::MAX_IMAGE_BYTES
+            process.terminate(graceful: false)
+            process.wait
+            return {success: false, message: "Decompressed image exceeds 8 GiB", filename: nil}
+          end
+          unless process.wait.success?
+            return {success: false, message: "Decompression failed", filename: nil}
+          end
+        rescue ex
+          process.terminate(graceful: false) unless process.terminated?
+          process.wait rescue nil
+          raise ex
+        end
+      else
+        File.open(uploaded_path) { |input| IO.copy(input, temp, MassStorageManager::MAX_IMAGE_BYTES + 1) }
       end
+      temp.flush
+      unless File.size(temp.path) > 0 && File.size(temp.path) <= MassStorageManager::MAX_IMAGE_BYTES
+        return {success: false, message: "Invalid image size", filename: nil}
+      end
+      temp.close
+      # Hard-link publication is atomic and refuses to overwrite any existing path.
+      File.link(temp.path, dest_path)
+      {success: true, message: "File uploaded as .img", filename: img_filename}
+    ensure
+      temp.close unless temp.closed?
+      File.delete(temp.path) if File.exists?(temp.path)
     end
-
-    {success: true, message: "File uploaded and decompressed as .img", filename: img_filename}
   rescue ex
-    {success: false, message: "Upload failed: #{ex.message}", filename: nil}
+    Log.error { "Image upload failed (#{ex.class})" }
+    {success: false, message: "Upload failed or image already exists", filename: nil}
   end
 
-  # Ensure the image is a raw .img file, return the raw image filename to use for mounting
   def ensure_decompressed_image(image : String?) : {success: Bool, raw_image: String?, message: String?}
     return {success: true, raw_image: nil, message: nil} unless image
-    disk_images_dir = "disk-images"
-    # The image should already be decompressed to .img during upload
-    # Just verify its existence and return the path
-    raw_path = File.join(disk_images_dir, image)
-    unless File.exists?(raw_path)
-      return {success: false, raw_image: nil, message: "Image file not found: #{image}. It might not have been uploaded or decompressed correctly."}
-    end
+    return {success: false, raw_image: nil, message: "Invalid or missing disk image"} unless MassStorageManager.image_path(image)
     {success: true, raw_image: image, message: nil}
   rescue ex
-    {success: false, raw_image: nil, message: ex.message}
+    {success: false, raw_image: nil, message: "Image validation failed"}
   end
 
   Log = ::Log.for(self)
