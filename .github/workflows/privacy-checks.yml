@@ -1,0 +1,26 @@
+name: Privacy regression checks
+on:
+  push:
+    branches: [privacy-hardening]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Static source and syntax checks
+        run: |
+          python3 tests/check_privacy.py
+          for file in assets/common.js assets/script.js assets/mobile/mobile.js assets/service-worker.js; do node --check "$file"; done
+          for file in site/install.sh build_static.sh deploy_site.sh do_release.sh; do bash -n "$file"; done
+      - name: Prepare builder
+        run: docker build -f Dockerfile.static -t kv-security-builder .
+      - name: Install locked dependencies and run specs
+        run: docker run --rm -v "$PWD":/work -w /work kv-security-builder sh -ec 'shards install --frozen && crystal spec -D spec'
+      - name: Build release binary
+        run: docker run --rm --network none -v "$PWD":/work -w /work kv-security-builder sh -ec 'shards build --static --release'
