@@ -49,6 +49,14 @@ jobs:
           )
           docker run --rm --network none kv-security-builder apk info -v | sort > "release/build-packages-$arch.txt"
           git rev-parse HEAD > release/source-commit.txt
+      - name: Compare installed builder packages with Alpine security database
+        run: |
+          mkdir -p security-db
+          for repo in main community; do
+            curl --fail --silent --show-error --location "https://secdb.alpinelinux.org/edge/$repo.json" -o "security-db/$repo.json"
+          done
+          docker run --rm --network none -v "$PWD":/work:ro -w /work kv-security-builder python3 tests/audit_alpine.py security-db/main.json security-db/community.json > release/alpine-security-audit.json
+          python3 -c 'import json; data=json.load(open("release/alpine-security-audit.json")); print("Alpine package audit: {} installed packages, {} potential findings requiring review".format(data["installedPackageCount"],len(data["potentialFindings"])))'
       - name: Upload tested build artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

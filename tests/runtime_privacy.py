@@ -5,6 +5,7 @@ import sys
 import traceback
 import base64
 import http.client
+import gzip
 import json
 import secrets
 import ipaddress
@@ -162,9 +163,94 @@ def RunTests(binary):
         print('Runtime authentication, rate limiting, origin, local assets, USB defaults and input-log checks passed.')
 
 
+def UploadImage(filename, data):
+
+    boundary = 'kv-' + secrets.token_hex(12)
+    body = (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{filename}"\r\n'
+            'Content-Type: application/octet-stream\r\n\r\n').encode() + data + f'\r\n--{boundary}--\r\n'.encode()
+    conn = http.client.HTTPConnection(host, port, timeout=10)
+    try:
+        conn.request('POST', '/api/storage/upload', body, {
+            'Authorization': auth, 'Origin': origin,
+            'Content-Type': f'multipart/form-data; boundary={boundary}'
+        })
+        response = conn.getresponse()
+        return response.status, json.loads(response.read())
+    finally:
+        conn.close()
+
+
+def RunStorageTests(binary):
+
+    with tempfile.TemporaryDirectory() as work:
+        env = os.environ.copy()
+        env.update(KV_USER=user, KV_PASSWORD=password, LOG_LEVEL='debug')
+        logPath = Path(work) / 'kv-storage.log'
+        diskPath = Path(work) / 'disk-images'
+        outsidePath = Path(work) / 'outside.img'
+        outsidePath.write_bytes(b'untouched outside image')
+        with logPath.open('wb') as log:
+            process = subprocess.Popen([binary, '-p', str(port), '--hotplug-interval=1',
+                                        '--enable-mass-storage', '--enable-ethernet'],
+                                       env=env, cwd=work, stdout=log, stderr=log, start_new_session=True)
+            try:
+                for _ in range(100):
+                    if process.poll() is not None:
+                        raise RuntimeError('Opt-in KV process exited during startup')
+                    try:
+                        if Request('/health')[0] == 200:
+                            break
+                    except OSError:
+                        time.sleep(0.1)
+                else:
+                    raise RuntimeError('Opt-in KV process did not start')
+                status, _, data = Request('/api/status')
+                state = json.loads(data)
+                assert status == 200 and not state['disabled']['ethernet'] and not state['disabled']['mass_storage']
+                status, _, data = Request('/api/storage/images')
+                assert status == 200 and json.loads(data)['images'] == []
+                assert not state['ecm']['enabled'], 'Ethernet started without explicit activation'
+                payload = b'test raw virtual disk'
+                status, result = UploadImage('test.img', payload)
+                assert status == 200 and result['success'], result
+                assert (diskPath / 'test.img').read_bytes() == payload
+                status, result = UploadImage('test.img', b'overwrite attempt')
+                assert not result['success'] and (diskPath / 'test.img').read_bytes() == payload
+                status, result = UploadImage('compressed.gz', gzip.compress(payload))
+                assert status == 200 and result['success'], result
+                assert (diskPath / 'compressed.img').read_bytes() == payload
+                for filename, content in [('bad name.img', payload), ('bad.gz', b'not gzip'),
+                                          ('unsupported.qcow2', payload), ('empty.img', b'')]:
+                    status, result = UploadImage(filename, content)
+                    assert not result['success'], filename
+                (diskPath / 'link.img').symlink_to(outsidePath)
+                status, _, data = Request('/api/storage/images')
+                assert sorted(json.loads(data)['images']) == ['compressed.img', 'test.img']
+                for name in ('../outside.img', 'link.img', str(outsidePath)):
+                    status, _, data = Request('/api/storage/select', 'POST', requestOrigin=origin,
+                                              body=json.dumps({'image': name}))
+                    assert not json.loads(data)['success'], name
+                status, _, data = Request('/api/storage/images/link.img', 'DELETE', requestOrigin=origin)
+                assert not json.loads(data)['success']
+                assert outsidePath.read_bytes() == b'untouched outside image'
+                status, _, data = Request('/api/storage/images/test.img', 'DELETE', requestOrigin=origin)
+                assert status == 200 and json.loads(data)['success']
+                assert not (diskPath / 'test.img').exists()
+                assert sorted(path.name for path in diskPath.iterdir()) == ['compressed.img', 'link.img']
+                print('Opt-in capabilities, raw/gzip uploads, invalid images, duplicate uploads, traversal and symlink checks passed.')
+            finally:
+                os.killpg(process.pid, signal.SIGTERM)
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    os.killpg(process.pid, signal.SIGKILL)
+                    process.wait()
+
+
 if __name__ == '__main__':
     try:
         RunTests(str(Path(sys.argv[1]).resolve()))
+        RunStorageTests(str(Path(sys.argv[1]).resolve()))
     except Exception as e:
         trbk = f'Exception! {e.__class__.__name__}: {e}\n{traceback.format_exc()}'
         print(trbk)

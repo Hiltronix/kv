@@ -27,7 +27,7 @@ Test missing/invalid credentials, authenticated HTTP and WebSocket, cross-origin
 - Kemal 1.15.0: security fixes GHSA-x97g-6h7h-q9w6 and GHSA-89xc-29wg-6mm5.
 - Crystal 1.22.3 minimum: HTTP parsing and networking security fixes; the Alpine build requests 1.22.3-r0 explicitly.
 - ALSA: pinned 1.2.16.1 plus upstream patches for CVE-2026-90781, CVE-2026-96674 and CVE-2026-96675. The newer base also addresses CVE-2026-25068 and CVE-2026-56109.
-- Further review of transitive libraries, Alpine package versions, and compiled binary dependencies is required. The base container and remaining APK packages are not yet reproducibly pinned.
+- Further review of transitive libraries and compiled binary dependencies is required. Direct APK requirements and the base image digest are pinned below; transitive package inventory is captured per build.
 
 ## ARM64 static build
 
@@ -36,3 +36,9 @@ The Alpine builder image is pinned by digest and the directly installed packages
 The ARM64 release build pairs the existing musl archive members for sigsetjmp and setjmp into a relocatable object, avoiding the limited conditional branch displacement that can occur in a large statically linked executable. No libc instructions are changed. The build runs a sigsetjmp/siglongjmp smoke test including restoration of a blocked signal mask. Both the local static builder and CI use the same release build script.
 
 CI uploads binaries and SHA-256 files only after the corresponding architecture's runtime privacy tests pass, together with the build package inventory and source commit. These are development artifacts, not production releases.
+
+## Expanded opt-in and package checks
+
+The headless runtime suite exercises optional feature flags, raw and gzip image uploads, duplicate rejection, invalid image rejection, path traversal, symlink rejection, and deletion without attaching real USB hardware. Actual mass-storage read-only enforcement, ECM/DHCP operation and video/audio/HID require physical hardware testing.
+
+The build audit compares installed Alpine source-package versions with the current official Alpine edge security database. The JSON report is retained with each tested artifact, including database SHA-256 hashes and potential findings. A reported version below a fix is a review candidate, not automatic proof of exploitability. This check covers installed build packages, not source-built libraries, Crystal shards, the target operating system, or all vulnerabilities. It does not contact the network at application runtime.
