@@ -9,6 +9,7 @@ require "baked_file_handler"
 require "kemal-basic-auth"
 require "./anti_idle"
 require "./hardware_detector"
+require "./security"
 
 module Main
   VERSION = {{ `shards version #{__DIR__}/../`.chomp.stringify }}
@@ -88,8 +89,10 @@ module Main
       exit 1
     end
     limiter = Kemal::BasicAuth::RateLimiter.new(max_attempts: 5, window: 1.minute)
+    Kemal.config.auth_handler = KVBasicAuthHandler
     basic_auth user, pass, rate_limiter: limiter
     Kemal.config.env = "production"
+    Kemal.config.serve_static = false
 
     # Check hardware availability first
     hw_status = HardwareDetector.hardware_status
@@ -340,4 +343,6 @@ module Main
   end
 end
 
-Main.main
+{% unless flag?(:spec) %}
+  Main.main
+{% end %}

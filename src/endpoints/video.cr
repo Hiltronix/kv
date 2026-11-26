@@ -28,7 +28,7 @@ post "/api/video/quality" do |env|
   env.response.content_type = "application/json"
   manager = GlobalKVM.manager
   begin
-    body = JSON.parse((env.request.body.try &.gets_to_end).to_s)
+    body = JSON.parse(KVSecurity.read_json_body(env.request.body))
     quality = body["quality"]?.try(&.as_s)
     if !quality || quality.strip.empty?
       {success: false, message: "No quality specified"}.to_json
@@ -88,7 +88,7 @@ post "/api/video/redetect-device" do |env|
     # Current device is available, but user may want to force re-detection anyway
     # This could be useful if the device is having issues but still exists
     begin
-      body = JSON.parse((env.request.body.try &.gets_to_end).to_s || "{}")
+      body = JSON.parse(KVSecurity.read_json_body(env.request.body))
       force = body["force"]?.try(&.as_bool) || false
 
       if force

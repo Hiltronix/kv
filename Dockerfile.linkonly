@@ -30,6 +30,7 @@ RUN rm -rf alsa-lib ogg opus
 RUN git clone https://github.com/alsa-project/alsa-lib.git
 
 WORKDIR /app/alsa-lib
+RUN git checkout --detach 81d70a27136840fa8fb1bec6eb8e04fc1475a380
 RUN which libtoolize
 RUN libtoolize --force --copy --automake
 RUN aclocal 
@@ -41,8 +42,9 @@ RUN make
 RUN cp src/.libs/libasound.a /usr/lib
 
 WORKDIR /app
-RUN git clone https://gitlab.xiph.org/xiph/ogg
+RUN git clone https://github.com/xiph/ogg.git
 WORKDIR /app/ogg
+RUN git checkout --detach be05b13e98b048f0b5a0f5fa8ce514d56db5f822
 RUN mkdir build 
 WORKDIR /app/ogg/build
 RUN cmake .. 
@@ -52,7 +54,7 @@ RUN cp libogg.a /usr/lib
 WORKDIR /app
 RUN git clone https://github.com/xiph/opus.git
 WORKDIR /app/opus
-RUN mkdir build 
+RUN git checkout --detach ddbe48383984d56acd9e1ab6a090c54ca6b735a6 
 WORKDIR /app/opus/build
 RUN cmake .. 
 RUN make CFLAGS="-mfloat-abi=soft"

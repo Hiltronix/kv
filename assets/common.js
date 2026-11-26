@@ -318,6 +318,7 @@ window.takeScreenshot = function () {
 
 // --- USB Mass Storage ---
 window.refreshUsbImages = function () {
+  if (window.kvStorageDisabled !== false) return
   window.apiFetch('/api/storage/images', {}, (data) => {
     const container = document.getElementById('usb-image-list')
     if (!container) return
@@ -399,6 +400,9 @@ window.updateStatus = function () {
   window.apiFetch('/api/status', {}, (data) => {
     // Handle disabled features
     if (data.disabled) {
+      const wasDisabled = window.kvStorageDisabled !== false
+      window.kvStorageDisabled = data.disabled.mass_storage
+      if (wasDisabled && !window.kvStorageDisabled) window.refreshUsbImages()
       // Show/hide USB storage section
       const usbSection = document.getElementById('section-usb')
       if (usbSection) {

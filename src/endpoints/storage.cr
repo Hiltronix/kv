@@ -34,7 +34,7 @@ post "/api/storage/select" do |env|
   end
 
   begin
-    body = JSON.parse((env.request.body.try &.gets_to_end).to_s)
+    body = JSON.parse(KVSecurity.read_json_body(env.request.body))
     image = body["image"]?
     # Allow null/empty to detach
     if !image || image.to_s.strip.empty?
@@ -57,7 +57,8 @@ post "/api/storage/select" do |env|
     manager.setup_hid_devices if result[:success]
     result.to_json
   rescue ex
-    {success: false, message: "Invalid request: #{ex.message}"}.to_json
+    env.response.status_code = 400
+    {success: false, message: "Invalid storage request"}.to_json
   end
 end
 

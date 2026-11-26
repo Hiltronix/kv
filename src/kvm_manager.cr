@@ -204,11 +204,12 @@ class KVMManagerV4cr
   @hotplug_interval : Time::Span
   @hotplug_fiber : Fiber?
 
-  def initialize(@video_device = "/dev/video1", @audio_device = "hw:1,0", @width = 640_u32, @height = 480_u32, @fps = 30, @video_jpeg_quality = 100, ecm_enabled = false, disable_mouse = false, disable_ethernet = false, disable_mass_storage = false, @hotplug_interval = 60.seconds)
+  def initialize(@video_device = "/dev/video1", @audio_device = "hw:1,0", @width = 640_u32, @height = 480_u32, @fps = 30, @video_jpeg_quality = 100, ecm_enabled = false, disable_mouse = false, disable_ethernet = true, disable_mass_storage = true, @hotplug_interval = 60.seconds)
     @ecm_enabled = ecm_enabled && !disable_ethernet
     @disable_mouse = disable_mouse
     @disable_ethernet = disable_ethernet
     @disable_mass_storage = disable_mass_storage
+    @mass_storage = disable_mass_storage ? nil : MassStorageManager.new
 
     # Initialize video components only if video device is available
     if @video_device.empty? || !File.exists?(@video_device)
