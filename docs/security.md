@@ -28,3 +28,11 @@ Test missing/invalid credentials, authenticated HTTP and WebSocket, cross-origin
 - Crystal 1.22.3 minimum: HTTP parsing and networking security fixes; the Alpine build requests 1.22.3-r0 explicitly.
 - ALSA: pinned 1.2.16.1 plus upstream patches for CVE-2026-90781, CVE-2026-96674 and CVE-2026-96675. The newer base also addresses CVE-2026-25068 and CVE-2026-56109.
 - Further review of transitive libraries, Alpine package versions, and compiled binary dependencies is required. The base container and remaining APK packages are not yet reproducibly pinned.
+
+## ARM64 static build
+
+The Alpine builder image is pinned by digest and the directly installed packages by observed versions. The package repository is still rolling, so an unavailable exact version intentionally fails the build. Complete offline reproducibility would require retaining a verified APK repository snapshot.
+
+The ARM64 release build pairs the existing musl archive members for sigsetjmp and setjmp into a relocatable object, avoiding the limited conditional branch displacement that can occur in a large statically linked executable. No libc instructions are changed. The build runs a sigsetjmp/siglongjmp smoke test including restoration of a blocked signal mask. Both the local static builder and CI use the same release build script.
+
+CI uploads binaries and SHA-256 files only after the corresponding architecture's runtime privacy tests pass, together with the build package inventory and source commit. These are development artifacts, not production releases.

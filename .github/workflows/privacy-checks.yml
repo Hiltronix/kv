@@ -27,9 +27,31 @@ jobs:
       - name: Install locked dependencies and run specs
         run: docker run --rm -v "$PWD":/work -w /work kv-security-builder sh -ec 'shards install --frozen && crystal spec -D spec'
       - name: Build release binary
-        run: docker run --rm --network none -v "$PWD":/work -w /work kv-security-builder sh -ec 'shards build --static --release'
+        run: docker run --rm --network none -v "$PWD":/work -w /work kv-security-builder sh -ec 'sh scripts/build-release.sh'
       - name: Ensure syscall tracing is available
         run: command -v strace || (sudo apt-get update && sudo apt-get install -y strace)
       - name: Runtime privacy and authentication tests in isolated network namespace
         run: |
           sudo unshare --net -- bash -ec 'ip link set lo up; runuser -u "$SUDO_USER" -- python3 tests/runtime_privacy.py "$PWD/bin/kv"'
+      - name: Prepare verified build artifacts
+        run: |
+          arch=$(uname -m)
+          case "$arch" in
+            x86_64) arch=amd64 ;;
+            aarch64) arch=arm64 ;;
+            *) exit 1 ;;
+          esac
+          mkdir -p release
+          cp bin/kv "release/kv-static-linux-$arch"
+          (
+            cd release
+            sha256sum "kv-static-linux-$arch" > "kv-static-linux-$arch.sha256"
+          )
+          docker run --rm --network none kv-security-builder apk info -v | sort > "release/build-packages-$arch.txt"
+          git rev-parse HEAD > release/source-commit.txt
+      - name: Upload tested build artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: kv-tested-${{ matrix.runner }}
+          path: release/
+          if-no-files-found: error
