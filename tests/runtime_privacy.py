@@ -7,6 +7,11 @@ import base64
 import http.client
 import json
 import secrets
+import ipaddress
+import platform
+import re
+import signal
+import shutil
 import socket
 import subprocess
 import tempfile
@@ -81,9 +86,11 @@ def RunTests(binary):
         assert failed.returncode != 0, 'Missing credentials accepted'
         env.update(KV_USER=user, KV_PASSWORD=password, LOG_LEVEL='debug')
         logPath = Path(work) / 'kv.log'
+        tracePath = Path(work) / 'network.trace'
         with logPath.open('wb') as log:
-            process = subprocess.Popen([binary, '-p', str(port), '--hotplug-interval=1'],
-                                       env=env, cwd=work, stdout=log, stderr=log)
+            process = subprocess.Popen(['strace', '-f', '-qq', '-e', 'trace=connect,sendto,sendmsg',
+                                        '-o', str(tracePath), binary, '-p', str(port), '--hotplug-interval=1'],
+                                       env=env, cwd=work, stdout=log, stderr=log, start_new_session=True)
             try:
                 for _ in range(100):
                     if process.poll() is not None:
@@ -125,18 +132,33 @@ def RunTests(binary):
                     finally:
                         client.close()
                     assert Request('/health')[0] == 200
+                if platform.machine() == 'x86_64':
+                    browser = shutil.which('google-chrome') or shutil.which('chromium')
+                    assert browser, 'No Chromium browser available on AMD64 runner'
+                    browserScript = Path(__file__).with_name('browser_privacy.mjs')
+                    subprocess.run(['node', '--experimental-websocket', str(browserScript), browser, origin, user, password],
+                                   check=True, timeout=50)
                 badAuth = 'Basic ' + base64.b64encode(b'wrong:wrong').decode()
                 for _ in range(5):
                     assert Request('/health', credentials=badAuth)[0] == 401
                 assert Request('/health', credentials=badAuth)[0] == 429
             finally:
-                process.terminate()
+                os.killpg(process.pid, signal.SIGTERM)
                 try:
                     process.wait(timeout=5)
                 except subprocess.TimeoutExpired:
-                    process.kill()
+                    os.killpg(process.pid, signal.SIGKILL)
                     process.wait()
         assert marker not in logPath.read_text(errors='replace'), 'Input payload leaked to DEBUG logs'
+        trace = tracePath.read_text(errors='replace')
+        addresses = re.findall(r'inet_addr\("([^"]+)"\)|inet_pton\(AF_INET6, "([^"]+)"', trace)
+        external = []
+        for v4, v6 in addresses:
+            ip = ipaddress.ip_address(v4 or v6)
+            if not ip.is_loopback and not (getattr(ip, 'ipv4_mapped', None) and ip.ipv4_mapped.is_loopback):
+                external.append(str(ip))
+        assert not external, f'Unexpected IP destinations: {external}'
+        print('No non-loopback IP destinations observed in traced KV socket calls.')
         print('Runtime authentication, rate limiting, origin, local assets, USB defaults and input-log checks passed.')
 
 

@@ -28,6 +28,8 @@ jobs:
         run: docker run --rm -v "$PWD":/work -w /work kv-security-builder sh -ec 'shards install --frozen && crystal spec -D spec'
       - name: Build release binary
         run: docker run --rm --network none -v "$PWD":/work -w /work kv-security-builder sh -ec 'shards build --static --release'
+      - name: Ensure syscall tracing is available
+        run: command -v strace || (sudo apt-get update && sudo apt-get install -y strace)
       - name: Runtime privacy and authentication tests in isolated network namespace
         run: |
           sudo unshare --net -- bash -ec 'ip link set lo up; runuser -u "$SUDO_USER" -- python3 tests/runtime_privacy.py "$PWD/bin/kv"'
