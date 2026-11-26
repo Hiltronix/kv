@@ -305,6 +305,7 @@ module Main
       env.response.headers["X-Content-Type-Options"] = "nosniff"
       env.response.headers["X-Frame-Options"] = "DENY"
       env.response.headers["Referrer-Policy"] = "no-referrer"
+      env.response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; media-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
       env.response.headers["Cache-Control"] = "no-store"
       if env.request.method != "GET" && env.request.method != "HEAD"
         origin = env.request.headers["Origin"]?

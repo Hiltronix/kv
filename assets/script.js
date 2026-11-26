@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Service worker
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/assets/service-worker.js')
+      navigator.serviceWorker.register('/assets/service-worker.js').catch(() => {})
     })
   }
 })
