@@ -30,7 +30,8 @@ RUN rm -rf alsa-lib ogg opus
 RUN git clone https://github.com/alsa-project/alsa-lib.git
 
 WORKDIR /app/alsa-lib
-RUN git checkout --detach 81d70a27136840fa8fb1bec6eb8e04fc1475a380
+RUN git checkout --detach a7babcb8e6361719bf18fa96f11354d125447500
+RUN git -c user.name=KV -c user.email=build@localhost cherry-pick f84cd4ced7b36fddb8e4ee24404cf7c091d27020 f8253a68baf9a5f57cdff1cd178920d13e5beb2b 81c4a89eb445f8e991ca80ab55b5649530c0aacd
 RUN which libtoolize
 RUN libtoolize --force --copy --automake
 RUN aclocal 

@@ -89,8 +89,15 @@ module Main
       exit 1
     end
     limiter = Kemal::BasicAuth::RateLimiter.new(max_attempts: 5, window: 1.minute)
+    add_handler KVSecurityHandler.new
     Kemal.config.auth_handler = KVBasicAuthHandler
     basic_auth user, pass, rate_limiter: limiter
+    spawn do
+      loop do
+        sleep 1.minute
+        limiter.purge_expired
+      end
+    end
     Kemal.config.env = "production"
     Kemal.config.serve_static = false
 
@@ -304,22 +311,8 @@ module Main
     Log.info { "with native V4L2 access for minimal latency." }
     Log.info { "" }
 
-    add_handler BakedFileHandler::BakedFileHandler.new(Assets)
-    # No cross-origin access is required by the KVM interface.
-    before_all do |env|
-      env.response.headers["X-Content-Type-Options"] = "nosniff"
-      env.response.headers["X-Frame-Options"] = "DENY"
-      env.response.headers["Referrer-Policy"] = "no-referrer"
-      env.response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; media-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
-      env.response.headers["Cache-Control"] = "no-store"
-      if env.request.method != "GET" && env.request.method != "HEAD"
-        origin = env.request.headers["Origin"]?
-        host = env.request.headers["Host"]?
-        unless origin && host && (origin == "http://#{host}" || origin == "https://#{host}")
-          halt env, status_code: 403, response: "Origin rejected"
-        end
-      end
-    end
+    add_handler BakedFileHandler::BakedFileHandler.new(Assets, cache_control: "no-store")
+    add_handler BakedFileHandler::BakedFileHandler.new(Assets, cache_control: "no-store", mount_path: "/assets")
     # Configure log level based on environment variable
     log_level = ENV.fetch("LOG_LEVEL", "info").downcase
     case log_level

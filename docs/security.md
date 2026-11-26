@@ -21,3 +21,10 @@ The systemd service retains root and hardware access needed by configfs, modprob
 Test both the KVM device and browser in a network-isolated environment. Verify that no connections to external origins occur in browser DevTools (including fonts, CSS, WebSocket, PWA/cache and audio). Capture DNS and outbound traffic on the SBC during startup, idle, browser connections and optional USB activation. Use test text, not real passwords, to verify absence from logs even at DEBUG level. Clear any historical journal entries and legacy browser caches separately if appropriate.
 
 Test missing/invalid credentials, authenticated HTTP and WebSocket, cross-origin requests, both USB opt-in flags, upload size limits, invalid paths, symlinks, compressed data and read-only USB behavior. Review the systemd unit on the target platform before enabling it. Dependency vulnerability and native binary audits remain separate tasks.
+
+## Dependency security review (2026-11-26)
+
+- Kemal 1.15.0: security fixes GHSA-x97g-6h7h-q9w6 and GHSA-89xc-29wg-6mm5.
+- Crystal 1.22.3 minimum: HTTP parsing and networking security fixes; the Alpine build requests 1.22.3-r0 explicitly.
+- ALSA: pinned 1.2.16.1 plus upstream patches for CVE-2026-90781, CVE-2026-96674 and CVE-2026-96675. The newer base also addresses CVE-2026-25068 and CVE-2026-56109.
+- Further review of transitive libraries, Alpine package versions, and compiled binary dependencies is required. The base container and remaining APK packages are not yet reproducibly pinned.

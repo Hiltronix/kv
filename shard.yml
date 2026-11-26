@@ -8,14 +8,14 @@ targets:
   kv:
     main: src/main.cr
 
-crystal: '>= 1.16.3'
+crystal: '>= 1.22.3'
 
 license: MIT
 
 dependencies:
   kemal:
     github: kemalcr/kemal
-    version: 1.14.0
+    version: 1.15.0
   v4cr:
     github: ralsina/v4cr
     commit: bb5216f35a1593117c88aa7e9ebaf466057a9151

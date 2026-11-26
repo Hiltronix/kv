@@ -255,8 +255,6 @@ module HIDComposite
           file_file = "#{base}/functions/mass_storage.0/lun.0/file"
           udc_file = "#{base}/UDC"
 
-          writable = false # Expose disk images read-only to the controlled host.
-          Log.debug { "Disk image writable_by_process=#{writable}" }
 
           # 1. Unbind UDC before reconfiguring mass storage
           if File.exists?(udc_file)
@@ -280,21 +278,9 @@ module HIDComposite
             end
           end
 
-          # 3. Set ro based on file writability
-          if File.exists?(ro_file)
-            begin
-              if writable
-                File.write(ro_file, "0")
-                Log.debug { "Set ro=0 before config (read-write)" }
-              else
-                File.write(ro_file, "1")
-                Log.warn { "Disk image is not writable by the process. Setting ro=1 (read-only)." }
-              end
-              sleep 0.2.seconds
-            rescue error
-              Log.debug { "Could not set ro before config: #{error.message}" }
-            end
-          end
+          # Fail closed if the kernel cannot enforce read-only storage.
+          File.write(ro_file, "1")
+          raise "Cannot enforce read-only mass storage" unless File.read(ro_file).strip == "1"
 
           # 4. Set new file, wait
           File.write "#{base}/functions/mass_storage.0/stall", "1"

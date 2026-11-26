@@ -20,7 +20,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Service worker
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/assets/service-worker.js').catch(() => {})
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        for (const registration of registrations) {
+          const worker = registration.active || registration.waiting || registration.installing
+          if (worker && ['/assets/service-worker.js', '/service-worker.js'].includes(new URL(worker.scriptURL).pathname)) registration.unregister()
+        }
+      }).catch(() => {})
+      if ('caches' in window) caches.keys().then(names => Promise.all(names.filter(name => name.startsWith('kvm-cache-')).map(name => caches.delete(name)))).catch(() => {})
     })
   }
 })
